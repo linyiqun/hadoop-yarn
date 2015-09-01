@@ -21,8 +21,10 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 import org.apache.hadoop.yarn.event.AbstractEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 
+//节点管理事件,继承自抽象事件
 public class NodesListManagerEvent extends
     AbstractEvent<NodesListManagerEventType> {
+  //资源节点
   private final RMNode node;
 
   public NodesListManagerEvent(NodesListManagerEventType type, RMNode node) {
