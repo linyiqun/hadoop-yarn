@@ -56,6 +56,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicy
 import org.apache.hadoop.yarn.server.utils.YarnServerBuilderUtils;
 import org.apache.hadoop.yarn.util.RackResolver;
 
+//节点资源跟踪服务,与各个节点的NodeManager通信服务
 public class ResourceTrackerService extends AbstractService implements
     ResourceTracker {
 
@@ -63,14 +64,19 @@ public class ResourceTrackerService extends AbstractService implements
 
   private static final RecordFactory recordFactory = 
     RecordFactoryProvider.getRecordFactory(null);
-
+  //资源管理器上下文
   private final RMContext rmContext;
+  //节点列表管理器
   private final NodesListManager nodesListManager;
+  //节点存活状态监控
   private final NMLivelinessMonitor nmLivelinessMonitor;
+  //节点安全认证相关
   private final RMContainerTokenSecretManager containerTokenSecretManager;
   private final NMTokenSecretManagerInRM nmTokenSecretManager;
-
+  
+  //心跳间隔
   private long nextHeartBeatInterval;
+  //远程RPC服务
   private Server server;
   private InetSocketAddress resourceTrackerAddress;
 
@@ -79,7 +85,9 @@ public class ResourceTrackerService extends AbstractService implements
   private static final NodeHeartbeatResponse shutDown = recordFactory
   .newRecordInstance(NodeHeartbeatResponse.class);
   
+  //最小分配的内存的大小
   private int minAllocMb;
+  //最小分配的核数大小
   private int minAllocVcores;
 
   static {
@@ -117,7 +125,8 @@ public class ResourceTrackerService extends AbstractService implements
           + YarnConfiguration.RM_NM_HEARTBEAT_INTERVAL_MS
           + " should be larger than 0.");
     }
-
+    
+    //从配置文件中读取分配和核数的大小设定
     minAllocMb = conf.getInt(
     	YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
     	YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB);
@@ -160,7 +169,8 @@ public class ResourceTrackerService extends AbstractService implements
     }
     super.serviceStop();
   }
-
+  
+  //响应NodeManager的节点注册请求方法
   @SuppressWarnings("unchecked")
   @Override
   public RegisterNodeManagerResponse registerNodeManager(
@@ -177,6 +187,7 @@ public class ResourceTrackerService extends AbstractService implements
         .newRecordInstance(RegisterNodeManagerResponse.class);
 
     // Check if this node is a 'valid' node
+    //如果此节点是在exclude名单中,注册请求将会被拒绝,调用的是节点列表管理器的isValidNode方法
     if (!this.nodesListManager.isValidNode(host)) {
       String message =
           "Disallowed NodeManager from  " + host
@@ -188,6 +199,7 @@ public class ResourceTrackerService extends AbstractService implements
     }
 
     // Check if this node has minimum allocations
+    //判断节点资源是否满足最小内存和核数的限制,如果没有同样拒绝注册
     if (capability.getMemory() < minAllocMb
         || capability.getVirtualCores() < minAllocVcores) {
       String message =
