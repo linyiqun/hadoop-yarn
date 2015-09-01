@@ -28,8 +28,9 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeEventType;
 import org.apache.hadoop.yarn.util.AbstractLivelinessMonitor;
 import org.apache.hadoop.yarn.util.SystemClock;
 
+//nodemanager节点存活状态监控类
 public class NMLivelinessMonitor extends AbstractLivelinessMonitor<NodeId> {
-
+  //中央事件调度器
   private EventHandler dispatcher;
   
   public NMLivelinessMonitor(Dispatcher d) {
@@ -38,6 +39,7 @@ public class NMLivelinessMonitor extends AbstractLivelinessMonitor<NodeId> {
   }
 
   public void serviceInit(Configuration conf) throws Exception {
+    //服务初始化方法设置监控间隔时间和超期时间
     int expireIntvl = conf.getInt(YarnConfiguration.RM_NM_EXPIRY_INTERVAL_MS,
             YarnConfiguration.DEFAULT_RM_NM_EXPIRY_INTERVAL_MS);
     setExpireInterval(expireIntvl);
@@ -47,6 +49,7 @@ public class NMLivelinessMonitor extends AbstractLivelinessMonitor<NodeId> {
 
   @Override
   protected void expire(NodeId id) {
+    //超期方法触发一次节点超期事件
     dispatcher.handle(
         new RMNodeEvent(id, RMNodeEventType.EXPIRE)); 
   }
