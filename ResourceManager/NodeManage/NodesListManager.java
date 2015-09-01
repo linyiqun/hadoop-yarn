@@ -39,16 +39,18 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppNodeUpdateEvent.
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 
 @SuppressWarnings("unchecked")
+//节点列表管理器,主要是根据include白名单和exclude黑名单属性进行判断,也是一个服务
 public class NodesListManager extends AbstractService implements
     EventHandler<NodesListManagerEvent> {
 
   private static final Log LOG = LogFactory.getLog(NodesListManager.class);
-
+  //节点列表读取器
   private HostsFileReader hostsReader;
   private Configuration conf;
+  //不允许使用的节点列表
   private Set<RMNode> unusableRMNodesConcurrentSet = Collections
       .newSetFromMap(new ConcurrentHashMap<RMNode,Boolean>());
-  
+  //资源管理上下文
   private final RMContext rmContext;
 
   public NodesListManager(RMContext rmContext) {
@@ -62,6 +64,7 @@ public class NodesListManager extends AbstractService implements
     this.conf = conf;
 
     // Read the hosts/exclude files to restrict access to the RM
+    //在服务初始化的时候读取include和exclude文件信息,exclude的节点列表名单将会被RM拒绝接入
     try {
       this.hostsReader = 
         new HostsFileReader(
@@ -70,6 +73,7 @@ public class NodesListManager extends AbstractService implements
             conf.get(YarnConfiguration.RM_NODES_EXCLUDE_FILE_PATH, 
                 YarnConfiguration.DEFAULT_RM_NODES_EXCLUDE_FILE_PATH)
                 );
+      //输出节点信息
       printConfiguredHosts();
     } catch (IOException ioe) {
       LOG.warn("Failed to init hostsReader, disabling", ioe);
@@ -102,7 +106,8 @@ public class NodesListManager extends AbstractService implements
       LOG.debug("exclude: " + exclude);
     }
   }
-
+  
+  //yarn rmadmin -refreshNodes命令将会更新一次节点列表的读入
   public void refreshNodes(Configuration yarnConf) throws IOException {
     synchronized (hostsReader) {
       if (null == yarnConf) {
@@ -117,12 +122,15 @@ public class NodesListManager extends AbstractService implements
       printConfiguredHosts();
     }
   }
-
+  
+  //输入主机名,判断是否是有效的节点,
   public boolean isValidNode(String hostName) {
     synchronized (hostsReader) {
+      //获取可接入和不可接入主机名列表
       Set<String> hostsList = hostsReader.getHosts();
       Set<String> excludeList = hostsReader.getExcludedHosts();
       String ip = NetUtils.normalizeHostName(hostName);
+      //判断是否在相应的列表中以此判断节点是否有效
       return (hostsList.isEmpty() || hostsList.contains(hostName) || hostsList
           .contains(ip))
           && !(excludeList.contains(hostName) || excludeList.contains(ip));
@@ -134,6 +142,7 @@ public class NodesListManager extends AbstractService implements
    * @param unUsableNodes
    *          Collection to which the unusable nodes are added
    * @return number of unusable nodes added
+   * 添加不允许使用的节点列表
    */
   public int getUnusableNodes(Collection<RMNode> unUsableNodes) {
     unUsableNodes.addAll(unusableRMNodesConcurrentSet);
@@ -143,7 +152,9 @@ public class NodesListManager extends AbstractService implements
   @Override
   public void handle(NodesListManagerEvent event) {
     RMNode eventNode = event.getNode();
+    //处理节点事件,节点类型为可用和 不可用两种
     switch (event.getType()) {
+   //节点不可用的时候
     case NODE_UNUSABLE:
       LOG.debug(eventNode + " reported unusable");
       unusableRMNodesConcurrentSet.add(eventNode);
@@ -156,6 +167,7 @@ public class NodesListManager extends AbstractService implements
                     RMAppNodeUpdateType.NODE_UNUSABLE));
       }
       break;
+    //节点可用的时候
     case NODE_USABLE:
       if (unusableRMNodesConcurrentSet.contains(eventNode)) {
         LOG.debug(eventNode + " reported usable");
