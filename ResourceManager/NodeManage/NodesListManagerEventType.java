@@ -17,7 +17,7 @@
  */
 
 package org.apache.hadoop.yarn.server.resourcemanager;
-
+//节点管理器事件类型2种,节点可用以及节点不可用
 public enum NodesListManagerEventType {
   NODE_USABLE,
   NODE_UNUSABLE
