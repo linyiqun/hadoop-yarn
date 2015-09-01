@@ -222,6 +222,7 @@ public class ResourceTrackerService extends AbstractService implements
 
     RMNode oldNode = this.rmContext.getRMNodes().putIfAbsent(nodeId, rmNode);
     if (oldNode == null) {
+      //如果是老的节点,则触发一次节点启动事件
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMNodeEvent(nodeId, RMNodeEventType.STARTED));
     } else {
@@ -233,6 +234,7 @@ public class ResourceTrackerService extends AbstractService implements
     // On every node manager register we will be clearing NMToken keys if
     // present for any running application.
     this.nmTokenSecretManager.removeNodeKey(nodeId);
+    //同时将节点注册到节点存活监控线程中
     this.nmLivelinessMonitor.register(nodeId);
 
     String message =
@@ -245,11 +247,13 @@ public class ResourceTrackerService extends AbstractService implements
     return response;
   }
 
+  //节点心跳相应方法
   @SuppressWarnings("unchecked")
   @Override
   public NodeHeartbeatResponse nodeHeartbeat(NodeHeartbeatRequest request)
       throws YarnException, IOException {
-
+    
+    //从心跳中获取远程节点状态信息
     NodeStatus remoteNodeStatus = request.getNodeStatus();
     /**
      * Here is the node heartbeat sequence...
@@ -272,15 +276,18 @@ public class ResourceTrackerService extends AbstractService implements
     }
 
     // Send ping
+    //更新心跳响应最新时间
     this.nmLivelinessMonitor.receivedPing(nodeId);
 
     // 2. Check if it's a valid (i.e. not excluded) node
+    //每次心跳检测都会检查节点是否被拉入exclude名单
     if (!this.nodesListManager.isValidNode(rmNode.getHostName())) {
       String message =
           "Disallowed NodeManager nodeId: " + nodeId + " hostname: "
               + rmNode.getNodeAddress();
       LOG.info(message);
       shutDown.setDiagnosticsMessage(message);
+      //如果是被拉入,则触发节点撤销事件
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMNodeEvent(nodeId, RMNodeEventType.DECOMMISSION));
       return shutDown;
@@ -308,6 +315,7 @@ public class ResourceTrackerService extends AbstractService implements
     }
 
     // Heartbeat response
+    //设置心跳回复
     NodeHeartbeatResponse nodeHeartBeatResponse = YarnServerBuilderUtils
         .newNodeHeartbeatResponse(lastNodeHeartbeatResponse.
             getResponseId() + 1, NodeAction.NORMAL, null, null, null, null,
